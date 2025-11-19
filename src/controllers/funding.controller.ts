@@ -1,10 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as fundingService from '../services/funding.service.js';
 import { depositSchema, withdrawalSchema } from '../utils/validation.js';
-
-interface AuthRequest extends Request {
-    user?: any;
-}
+import { AuthRequest } from '../middlewares/auth.middleware.js';
 
 export const deposit = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {

@@ -1,10 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as dtpService from '../services/dtp.service.js';
 import { debtTransferSchema } from '../utils/validation.js';
-
-interface AuthRequest extends Request {
-    user?: any;
-}
+import { AuthRequest } from '../middlewares/auth.middleware.js';
 
 export const transferDebt = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {

@@ -1,9 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as analyticsService from '../services/analytics.service.js';
-
-interface AuthRequest extends Request {
-    user?: any;
-}
+import { AuthRequest } from '../middlewares/auth.middleware.js';
 
 export const getNotifications = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {

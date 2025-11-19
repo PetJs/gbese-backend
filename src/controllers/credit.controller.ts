@@ -1,10 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as creditService from '../services/credit.service.js';
 import { creditApplicationSchema } from '../utils/validation.js';
-
-interface AuthRequest extends Request {
-    user?: any;
-}
+import { AuthRequest } from '../middlewares/auth.middleware.js';
 
 export const getProviders = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {

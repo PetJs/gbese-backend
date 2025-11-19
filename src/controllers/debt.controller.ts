@@ -1,10 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as debtService from '../services/debt.service.js';
 import { paymentScheduleSchema } from '../utils/validation.js';
-
-interface AuthRequest extends Request {
-    user?: any;
-}
+import { AuthRequest } from '../middlewares/auth.middleware.js';
 
 export const getObligations = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {

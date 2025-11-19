@@ -1,11 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as kycService from '../services/kyc.service.js';
 import { kycSubmitSchema } from '../utils/validation.js';
-
-interface AuthRequest extends Request {
-    user?: any;
-    file?: any;
-}
+import { AuthRequest } from '../middlewares/auth.middleware.js';
 
 export const submitKyc = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {

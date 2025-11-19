@@ -1,9 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as accountService from '../services/account.service.js';
-
-interface AuthRequest extends Request {
-    user?: any;
-}
+import { AuthRequest } from '../middlewares/auth.middleware.js';
 
 export const getBalance = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {

@@ -1,10 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as userService from '../services/user.service.js';
 import { updateProfileSchema, createPinSchema, changePinSchema, verify2FASchema } from '../utils/validation.js';
-
-interface AuthRequest extends Request {
-    user?: any;
-}
+import { AuthRequest } from '../middlewares/auth.middleware.js';
 
 export const getProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {

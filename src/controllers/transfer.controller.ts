@@ -1,10 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as transferService from '../services/transfer.service.js';
 import { transferSchema } from '../utils/validation.js';
-
-interface AuthRequest extends Request {
-    user?: any;
-}
+import { AuthRequest } from '../middlewares/auth.middleware.js';
 
 export const transfer = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
