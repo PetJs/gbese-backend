@@ -1,0 +1,459 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  user
+  admin
+  compliance_officer
+  support
+}
+
+enum KycStatus {
+  pending
+  under_review
+  verified
+  rejected
+  expired
+}
+
+enum AccountStatus {
+  active
+  suspended
+  closed
+  frozen
+}
+
+enum AccountType {
+  standard
+  premium
+  business
+}
+
+enum TransactionType {
+  transfer
+  deposit
+  withdrawal
+  bill_pay
+  loan_disbursement
+  debt_payment
+  debt_transfer_incentive
+}
+
+enum TransactionStatus {
+  pending
+  processing
+  completed
+  failed
+  reversed
+  cancelled
+}
+
+enum DebtStatus {
+  active
+  paid
+  defaulted
+  transferred
+  restructured
+}
+
+enum TransferType {
+  direct
+  anonymous_shuffle
+  marketplace
+}
+
+enum TransferStatus {
+  pending
+  accepted
+  rejected
+  cancelled
+  expired
+}
+
+enum CreditAppStatus {
+  submitted
+  under_review
+  approved
+  rejected
+  disbursed
+  cancelled
+}
+
+enum KycDocType {
+  national_id
+  drivers_license
+  passport
+  utility_bill
+  bank_statement
+  selfie
+}
+
+enum KycReviewStatus {
+  pending
+  under_review
+  approved
+  rejected
+}
+
+enum NotificationType {
+  transfer
+  debt_request
+  payment_due
+  kyc_update
+  security_alert
+  credit_decision
+  system_announcement
+}
+
+enum NotificationPriority {
+  low
+  normal
+  high
+  urgent
+}
+
+enum PaymentFrequency {
+  weekly
+  biweekly
+  monthly
+}
+
+enum ExecutionStatus {
+  success
+  failed
+  skipped
+}
+
+enum Severity {
+  info
+  warning
+  error
+  critical
+}
+
+model User {
+  id                   String    @id @default(uuid())
+  email                String    @unique
+  password_hash        String
+  first_name           String
+  last_name            String
+  phone_number         String    @unique
+  kyc_status           KycStatus @default(pending)
+  kyc_rejection_reason String?   @db.Text
+  reputation_score     Decimal   @default(0.00) @db.Decimal(5, 2)
+  account_status       AccountStatus @default(active)
+  role                 UserRole  @default(user)
+  two_factor_enabled   Boolean   @default(false)
+  two_factor_secret    String?
+  transaction_pin_hash String?
+  last_login           DateTime?
+  failed_login_attempts Int      @default(0)
+  locked_until         DateTime?
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @default(now()) @updatedAt
+  deleted_at           DateTime?
+
+  account              Account?
+  sent_transactions    Transaction[] @relation("Sender")
+  received_transactions Transaction[] @relation("Recipient")
+  
+  held_debts           DebtObligation[] @relation("CurrentHolder")
+  borrowed_debts       DebtObligation[] @relation("OriginalBorrower")
+  
+  sent_debt_requests   DebtTransferRequest[] @relation("RequestSender")
+  received_debt_requests DebtTransferRequest[] @relation("RequestRecipient")
+  
+  credit_applications  CreditApplication[]
+  kyc_documents        KYCDocument[] @relation("UserDocs")
+  reviewed_documents   KYCDocument[] @relation("Reviewer")
+  
+  audit_logs_user      AuditLog[] @relation("UserAudit")
+  audit_logs_admin     AuditLog[] @relation("AdminAudit")
+  
+  notifications        Notification[]
+  payment_schedules    PaymentSchedule[]
+
+  @@index([email])
+  @@index([phone_number])
+  @@index([kyc_status])
+  @@index([account_status])
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  user_id               String    @unique
+  user                  User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  account_number        String    @unique
+  current_balance       Decimal   @default(0.00) @db.Decimal(15, 2)
+  credit_limit          Decimal   @default(0.00) @db.Decimal(15, 2)
+  total_debt_obligation Decimal   @default(0.00) @db.Decimal(15, 2)
+  pending_transfers_out Decimal   @default(0.00) @db.Decimal(15, 2)
+  pending_transfers_in  Decimal   @default(0.00) @db.Decimal(15, 2)
+  // available_credit is a generated column in SQL, Prisma doesn't fully support generated columns in schema for all DBs easily, 
+  // but we can handle it in application logic or raw SQL migration. For now, we'll omit it from schema or make it a regular column updated by logic.
+  // Let's keep it as a regular column that we update manually for now to avoid migration complexity with generated columns in Prisma/MySQL.
+  available_credit      Decimal   @default(0.00) @db.Decimal(15, 2) 
+  currency              String    @default("NGN") @db.VarChar(3)
+  account_type          AccountType @default(standard)
+  is_locked             Boolean   @default(false)
+  daily_transfer_limit  Decimal   @default(500000.00) @db.Decimal(15, 2)
+  daily_transfer_amount Decimal   @default(0.00) @db.Decimal(15, 2)
+  last_limit_reset      DateTime  @default(now())
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @default(now()) @updatedAt
+
+  sent_transactions     Transaction[] @relation("SenderAccount")
+  received_transactions Transaction[] @relation("RecipientAccount")
+
+  @@index([user_id])
+  @@index([account_number])
+}
+
+model Transaction {
+  id                      String    @id @default(uuid())
+  reference_number        String    @unique
+  idempotency_key         String?   @unique
+  sender_id               String?
+  sender                  User?     @relation("Sender", fields: [sender_id], references: [id])
+  recipient_id            String?
+  recipient               User?     @relation("Recipient", fields: [recipient_id], references: [id])
+  sender_account_id       String?
+  sender_account          Account?  @relation("SenderAccount", fields: [sender_account_id], references: [id])
+  recipient_account_id    String?
+  recipient_account       Account?  @relation("RecipientAccount", fields: [recipient_account_id], references: [id])
+  type                    TransactionType
+  amount                  Decimal   @db.Decimal(15, 2)
+  fee                     Decimal   @default(0.00) @db.Decimal(15, 2)
+  status                  TransactionStatus @default(pending)
+  failure_reason          String?   @db.Text
+  description             String?   @db.VarChar(500)
+  metadata                Json?
+  initiated_at            DateTime  @default(now())
+  completed_at            DateTime?
+  reversed_at             DateTime?
+  reversal_transaction_id String?
+  reversal_transaction    Transaction? @relation("Reversal", fields: [reversal_transaction_id], references: [id])
+  reversed_by             Transaction[] @relation("Reversal")
+  ip_address              String?
+  user_agent              String?
+  created_at              DateTime  @default(now())
+
+  @@index([reference_number])
+  @@index([sender_id])
+  @@index([recipient_id])
+  @@index([status])
+  @@index([type])
+  @@index([created_at(sort: Desc)])
+  @@index([idempotency_key])
+}
+
+model DebtObligation {
+  id                   String    @id @default(uuid())
+  obligation_number    String    @unique
+  current_holder_id    String
+  current_holder       User      @relation("CurrentHolder", fields: [current_holder_id], references: [id])
+  original_creditor_id String
+  original_creditor    CreditProvider @relation(fields: [original_creditor_id], references: [id])
+  original_borrower_id String
+  original_borrower    User      @relation("OriginalBorrower", fields: [original_borrower_id], references: [id])
+  principal_amount     Decimal   @db.Decimal(15, 2)
+  remaining_balance    Decimal   @db.Decimal(15, 2)
+  interest_rate        Decimal   @db.Decimal(5, 2)
+  monthly_payment      Decimal   @db.Decimal(15, 2)
+  due_date             DateTime  @db.Date
+  next_payment_date    DateTime  @db.Date
+  status               DebtStatus @default(active)
+  is_transferable      Boolean   @default(true)
+  transfer_count       Int       @default(0)
+  max_transfer_count   Int       @default(5)
+  days_overdue         Int       @default(0)
+  created_at           DateTime  @default(now())
+  transferred_at       DateTime?
+  paid_off_at          DateTime?
+  updated_at           DateTime  @default(now()) @updatedAt
+
+  transfer_requests    DebtTransferRequest[]
+  payment_schedules    PaymentSchedule[]
+
+  @@index([current_holder_id])
+  @@index([original_borrower_id])
+  @@index([status])
+  @@index([due_date])
+  @@index([next_payment_date])
+}
+
+model DebtTransferRequest {
+  id                   String    @id @default(uuid())
+  request_number       String    @unique
+  sender_id            String
+  sender               User      @relation("RequestSender", fields: [sender_id], references: [id])
+  recipient_id         String?
+  recipient            User?     @relation("RequestRecipient", fields: [recipient_id], references: [id])
+  debt_id              String
+  debt                 DebtObligation @relation(fields: [debt_id], references: [id])
+  incentive_amount     Decimal   @default(0.00) @db.Decimal(15, 2)
+  incentive_percentage Decimal?  @db.Decimal(5, 2)
+  transfer_type        TransferType @default(direct)
+  status               TransferStatus @default(pending)
+  rejection_reason     String?   @db.Text
+  notes                String?   @db.Text
+  expires_at           DateTime
+  created_at           DateTime  @default(now())
+  accepted_at          DateTime?
+  rejected_at          DateTime?
+  cancelled_at         DateTime?
+
+  @@index([sender_id])
+  @@index([recipient_id])
+  @@index([debt_id])
+  @@index([status])
+  @@index([created_at(sort: Desc)])
+}
+
+model CreditProvider {
+  id                    String    @id @default(uuid())
+  name                  String
+  slug                  String    @unique
+  api_key_hash          String
+  webhook_secret        String
+  endpoint_url          String    @db.VarChar(500)
+  default_interest_rate Decimal   @db.Decimal(5, 2)
+  min_loan_amount       Decimal   @db.Decimal(15, 2)
+  max_loan_amount       Decimal   @db.Decimal(15, 2)
+  min_tenure_months     Int
+  max_tenure_months     Int
+  is_active             Boolean   @default(true)
+  logo_url              String?   @db.VarChar(500)
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @default(now()) @updatedAt
+
+  debt_obligations      DebtObligation[]
+  credit_applications   CreditApplication[]
+
+  @@index([slug])
+  @@index([is_active])
+}
+
+model CreditApplication {
+  id                  String    @id @default(uuid())
+  application_number  String    @unique
+  user_id             String
+  user                User      @relation(fields: [user_id], references: [id])
+  provider_id         String
+  provider            CreditProvider @relation(fields: [provider_id], references: [id])
+  requested_amount    Decimal   @db.Decimal(15, 2)
+  approved_amount     Decimal?  @db.Decimal(15, 2)
+  tenure_months       Int
+  interest_rate       Decimal   @db.Decimal(5, 2)
+  monthly_payment     Decimal?  @db.Decimal(15, 2)
+  status              CreditAppStatus @default(submitted)
+  rejection_reason    String?   @db.Text
+  external_reference  String?
+  application_data    Json
+  decision_data       Json?
+  submitted_at        DateTime  @default(now())
+  reviewed_at         DateTime?
+  approved_at         DateTime?
+  disbursed_at        DateTime?
+  created_at          DateTime  @default(now())
+
+  @@index([user_id])
+  @@index([provider_id])
+  @@index([status])
+  @@index([submitted_at(sort: Desc)])
+}
+
+model KYCDocument {
+  id               String    @id @default(uuid())
+  user_id          String
+  user             User      @relation("UserDocs", fields: [user_id], references: [id])
+  document_type    KycDocType
+  file_url         String    @db.VarChar(500)
+  file_hash        String    @db.VarChar(64)
+  file_size_bytes  BigInt
+  mime_type        String
+  review_status    KycReviewStatus @default(pending)
+  rejection_reason String?   @db.Text
+  reviewed_by      String?
+  reviewer         User?     @relation("Reviewer", fields: [reviewed_by], references: [id])
+  uploaded_at      DateTime  @default(now())
+  reviewed_at      DateTime?
+  expires_at       DateTime?
+
+  @@index([user_id])
+  @@index([review_status])
+  @@index([document_type])
+}
+
+model AuditLog {
+  id            String    @id @default(uuid())
+  user_id       String?
+  user          User?     @relation("UserAudit", fields: [user_id], references: [id])
+  admin_id      String?
+  admin         User?     @relation("AdminAudit", fields: [admin_id], references: [id])
+  action        String
+  resource_type String
+  resource_id   String?
+  ip_address    String
+  user_agent    String?
+  request_id    String?
+  changes       Json?
+  metadata      Json?
+  severity      Severity  @default(info)
+  created_at    DateTime  @default(now())
+
+  @@index([user_id])
+  @@index([admin_id])
+  @@index([action])
+  @@index([created_at(sort: Desc)])
+  @@index([resource_type, resource_id])
+}
+
+model Notification {
+  id         String    @id @default(uuid())
+  user_id    String
+  user       User      @relation(fields: [user_id], references: [id])
+  type       NotificationType
+  title      String
+  message    String    @db.Text
+  action_url String?   @db.VarChar(500)
+  is_read    Boolean   @default(false)
+  priority   NotificationPriority @default(normal)
+  read_at    DateTime?
+  expires_at DateTime?
+  created_at DateTime  @default(now())
+
+  @@index([user_id])
+  @@index([is_read])
+  @@index([created_at(sort: Desc)])
+}
+
+model PaymentSchedule {
+  id                    String    @id @default(uuid())
+  user_id               String
+  user                  User      @relation(fields: [user_id], references: [id])
+  debt_id               String
+  debt                  DebtObligation @relation(fields: [debt_id], references: [id])
+  amount                Decimal   @db.Decimal(15, 2)
+  frequency             PaymentFrequency
+  next_execution_date   DateTime  @db.Date
+  is_active             Boolean   @default(true)
+  auto_retry_on_failure Boolean   @default(true)
+  max_retry_attempts    Int       @default(3)
+  failed_attempts       Int       @default(0)
+  last_execution_at     DateTime?
+  last_execution_status ExecutionStatus?
+  created_at            DateTime  @default(now())
+  deactivated_at        DateTime?
+
+  @@index([user_id])
+  @@index([debt_id])
+  @@index([next_execution_date])
+  @@index([is_active])
+}
