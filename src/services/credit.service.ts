@@ -75,15 +75,118 @@ export const applyForCredit = async (userId: string, data: any) => {
         }
     });
 
+    // Auto-approve and disburse
+    await disburseCredit(application.id);
+
+    // Refetch to get updated status
+    const updatedApplication = await prisma.creditApplication.findUnique({
+        where: { id: application.id }
+    });
+
     return {
-        application_id: application.id,
-        application_number: application.application_number,
-        status: application.status,
-        amount: application.requested_amount,
-        interest_rate: application.interest_rate,
+        application_id: updatedApplication?.id,
+        application_number: updatedApplication?.application_number,
+        status: updatedApplication?.status,
+        amount: updatedApplication?.requested_amount,
+        interest_rate: updatedApplication?.interest_rate,
         total_repayment: totalRepayment,
-        submitted_at: application.submitted_at
+        submitted_at: updatedApplication?.submitted_at,
+        disbursed_at: updatedApplication?.disbursed_at
     };
+};
+
+const disburseCredit = async (applicationId: string) => {
+    const application = await prisma.creditApplication.findUnique({
+        where: { id: applicationId },
+        include: { provider: true }
+    });
+
+    if (!application) throw { statusCode: 404, message: 'Application not found' };
+    if (application.status !== 'submitted') return; // Already processed
+
+    const account = await prisma.account.findUnique({
+        where: { user_id: application.user_id }
+    });
+
+    if (!account) throw { statusCode: 404, message: 'User account not found' };
+
+    const amount = Number(application.requested_amount);
+    const interestRate = Number(application.interest_rate);
+    const tenureMonths = application.tenure_months;
+
+    // Calculate repayment details
+    const interestAmount = (amount * interestRate * tenureMonths) / 1200;
+    const totalRepayment = amount + interestAmount;
+    const monthlyPayment = totalRepayment / tenureMonths;
+
+    const now = new Date();
+    const dueDate = new Date(now);
+    dueDate.setMonth(dueDate.getMonth() + tenureMonths);
+
+    const nextPaymentDate = new Date(now);
+    nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+
+    await prisma.$transaction([
+        // 1. Update Application Status
+        prisma.creditApplication.update({
+            where: { id: applicationId },
+            data: {
+                status: 'disbursed',
+                approved_amount: amount,
+                monthly_payment: monthlyPayment,
+                approved_at: now,
+                disbursed_at: now,
+                decision_data: {
+                    auto_approved: true,
+                    reason: 'Meets criteria'
+                }
+            }
+        }),
+
+        // 2. Credit User Account
+        prisma.account.update({
+            where: { id: account.id },
+            data: {
+                current_balance: { increment: amount },
+                total_debt_obligation: { increment: totalRepayment }
+            }
+        }),
+
+        // 3. Create Transaction Record
+        prisma.transaction.create({
+            data: {
+                reference_number: `TX-LOAN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                recipient_id: application.user_id,
+                recipient_account_id: account.id,
+                type: 'loan_disbursement',
+                amount: amount,
+                status: 'completed',
+                description: `Loan disbursement from ${application.provider.name}`,
+                completed_at: now,
+                metadata: {
+                    application_id: applicationId,
+                    provider_id: application.provider_id
+                }
+            }
+        }),
+
+        // 4. Create Debt Obligation
+        prisma.debtObligation.create({
+            data: {
+                obligation_number: `DOB-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                current_holder_id: application.user_id,
+                original_creditor_id: application.provider_id,
+                original_borrower_id: application.user_id,
+                principal_amount: amount,
+                remaining_balance: totalRepayment,
+                interest_rate: interestRate,
+                monthly_payment: monthlyPayment,
+                due_date: dueDate,
+                next_payment_date: nextPaymentDate,
+                status: 'active'
+            }
+        })
+    ]);
 };
 
 export const getApplicationStatus = async (userId: string, applicationId: string) => {
