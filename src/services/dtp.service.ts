@@ -87,15 +87,67 @@ export const respondToRequest = async (userId: string, requestId: string, action
     }
 
     return await prisma.$transaction(async (tx: any) => {
+        // 1. Update Request Status
         await tx.debtTransferRequest.update({
             where: { id: requestId },
             data: { status: 'accepted', accepted_at: new Date() }
         });
 
+        // 2. Update Debt Obligation Ownership
         await tx.debtObligation.update({
             where: { id: request.debt_id },
             data: { current_holder_id: userId, transferred_at: new Date() }
         });
+
+        // 3. Adjust Account Balances
+        const senderAccount = await tx.account.findUnique({ where: { user_id: request.sender_id } });
+        const recipientAccount = await tx.account.findUnique({ where: { user_id: userId } });
+
+        if (!senderAccount || !recipientAccount) {
+            throw { statusCode: 404, message: 'Account not found for one or both parties' };
+        }
+
+        const debtAmount = Number(request.debt.remaining_balance);
+        const incentiveAmount = Number(request.incentive_amount || 0);
+
+        // Sender: Debt decreases. If incentive paid, balance decreases.
+        await tx.account.update({
+            where: { id: senderAccount.id },
+            data: {
+                total_debt_obligation: { decrement: debtAmount },
+                current_balance: { decrement: incentiveAmount }
+            }
+        });
+
+        // Recipient: Debt increases. If incentive received, balance increases.
+        await tx.account.update({
+            where: { id: recipientAccount.id },
+            data: {
+                total_debt_obligation: { increment: debtAmount },
+                current_balance: { increment: incentiveAmount }
+            }
+        });
+
+        // 4. Log Incentive Transaction (if applicable)
+        if (incentiveAmount > 0) {
+            await tx.transaction.create({
+                data: {
+                    reference_number: `TX-INC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                    sender_id: request.sender_id,
+                    sender_account_id: senderAccount.id,
+                    recipient_id: userId,
+                    recipient_account_id: recipientAccount.id,
+                    type: 'debt_transfer_incentive',
+                    amount: incentiveAmount,
+                    status: 'completed',
+                    description: `Incentive for debt transfer ${request.request_number}`,
+                    metadata: {
+                        debt_id: request.debt_id,
+                        request_id: requestId
+                    }
+                }
+            });
+        }
 
         return { status: 'accepted', message: 'Debt ownership transferred successfully' };
     });
