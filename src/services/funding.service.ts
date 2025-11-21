@@ -15,19 +15,35 @@ export const initiateDeposit = async (userId: string, data: any) => {
         throw { statusCode: 404, message: 'Account not found' };
     }
 
-    const transaction = await prisma.transaction.create({
-        data: {
-            reference_number: reference,
-            recipient_id: userId,
-            recipient_account_id: account.id,
-            type: 'deposit',
-            amount: amount,
-            status: 'pending',
-            metadata: {
-                payment_method,
-                ...metadata
+    // Use transaction to ensure atomicity
+    const transaction = await prisma.$transaction(async (tx: any) => {
+        // 1. Create Transaction Record
+        const newTx = await tx.transaction.create({
+            data: {
+                reference_number: reference,
+                recipient_id: userId,
+                recipient_account_id: account.id,
+                type: 'deposit',
+                amount: amount,
+                status: 'completed', // Auto-completed
+                completed_at: new Date(),
+                metadata: {
+                    payment_method,
+                    auto_deposited: true,
+                    ...metadata
+                }
             }
-        }
+        });
+
+        // 2. Update Account Balance
+        await tx.account.update({
+            where: { id: account.id },
+            data: {
+                current_balance: { increment: amount }
+            }
+        });
+
+        return newTx;
     });
 
     return {
@@ -35,13 +51,8 @@ export const initiateDeposit = async (userId: string, data: any) => {
         reference_number: transaction.reference_number,
         amount: transaction.amount,
         payment_method,
-        payment_instructions: {
-            bank_name: 'Wema Bank',
-            account_number: '1234567890',
-            account_name: 'GBESE - User',
-            expires_at: new Date(Date.now() + 3600000) // 1 hour
-        },
-        status: transaction.status
+        status: transaction.status,
+        message: 'Deposit successful. Funds added to account.'
     };
 };
 
