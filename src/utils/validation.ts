@@ -82,7 +82,7 @@ export const transferSchema = Joi.object({
 export const creditApplicationSchema = Joi.object({
     provider_id: Joi.string().required(),
     amount: Joi.number().positive().required(),
-    duration_days: Joi.number().integer().min(1).required(),
+    tenure_months: Joi.number().integer().min(1).required(),
     purpose: Joi.string().optional(),
 });
 
