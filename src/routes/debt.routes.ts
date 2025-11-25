@@ -75,4 +75,32 @@ router.get('/obligations/:obligation_id', debtController.getObligation);
  */
 router.post('/payments/schedule', debtController.schedulePayment);
 
+/**
+ * @swagger
+ * /api/v1/debt/repay:
+ *   post:
+ *     summary: Repay debt obligation
+ *     tags: [Debt]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - obligation_id
+ *               - amount
+ *             properties:
+ *               obligation_id:
+ *                 type: string
+ *               amount:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Repayment processed
+ */
+router.post('/repay', debtController.repayDebt);
+
 export default router;
