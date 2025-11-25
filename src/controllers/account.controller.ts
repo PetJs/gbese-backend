@@ -28,3 +28,18 @@ export const getTransaction = async (req: AuthRequest, res: Response, next: Next
         next(error);
     }
 };
+
+export const requestLimitIncrease = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        const { requested_limit } = req.body;
+        if (!requested_limit) {
+            res.status(400).json({ success: false, message: 'requested_limit is required' });
+            return;
+        }
+
+        const result = await accountService.requestLimitIncrease(req.user.id, Number(requested_limit));
+        res.status(200).json({ success: true, data: result, message: 'Credit limit increase processed' });
+    } catch (error) {
+        next(error);
+    }
+};
