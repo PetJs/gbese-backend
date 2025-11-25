@@ -65,7 +65,7 @@ router.put('/notifications/read-all', authenticate, analyticsController.markAllR
 // Analytics
 /**
  * @swagger
- * /api/v1/analytics/analytics/impact:
+ * /api/v1/analytics/impact:
  *   get:
  *     summary: Get user impact analytics
  *     tags: [Analytics]
@@ -75,11 +75,11 @@ router.put('/notifications/read-all', authenticate, analyticsController.markAllR
  *       200:
  *         description: User impact metrics
  */
-router.get('/analytics/impact', authenticate, analyticsController.getImpact);
+router.get('/impact', authenticate, analyticsController.getImpact);
 
 /**
  * @swagger
- * /api/v1/analytics/analytics/prediction:
+ * /api/v1/analytics/prediction:
  *   get:
  *     summary: Get credit prediction analytics
  *     tags: [Analytics]
@@ -89,7 +89,7 @@ router.get('/analytics/impact', authenticate, analyticsController.getImpact);
  *       200:
  *         description: Credit prediction data
  */
-router.get('/analytics/prediction', authenticate, analyticsController.getPrediction);
+router.get('/prediction', authenticate, analyticsController.getPrediction);
 
 // Webhooks (No auth middleware, usually signature verification)
 /**
