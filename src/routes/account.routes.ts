@@ -73,4 +73,29 @@ router.get('/transactions', accountController.getTransactions);
  */
 router.get('/transactions/:reference_number', accountController.getTransaction);
 
+/**
+ * @swagger
+ * /api/v1/account/limit/increase:
+ *   post:
+ *     summary: Request credit limit increase
+ *     tags: [Account]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - requested_limit
+ *             properties:
+ *               requested_limit:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Credit limit updated
+ */
+router.post('/limit/increase', accountController.requestLimitIncrease);
+
 export default router;
