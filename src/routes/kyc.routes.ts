@@ -31,6 +31,22 @@ router.use(authenticate);
  *                 type: string
  *               country:
  *                 type: string
+ *               postal_code:
+ *                 type: string
+ *               date_of_birth:
+ *                 type: string
+ *                 format: date
+ *               occupation:
+ *                 type: string
+ *               gender:
+ *                 type: string
+ *                 enum: [male, female, other]
+ *     responses:
+ *       200:
+ *         description: KYC submitted successfully
+ */
+router.post('/submit', kycController.submitKyc);
+
 /**
  * @swagger
  * /api/v1/kyc/document/upload:
