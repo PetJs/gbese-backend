@@ -109,6 +109,7 @@ enum NotificationType {
   security_alert
   credit_decision
   system_announcement
+  system_alert
 }
 
 enum NotificationPriority {
