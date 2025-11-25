@@ -1,4 +1,5 @@
 import prisma from '../config/db.js';
+import { createNotification } from './analytics.service.js';
 
 export const initiateTransfer = async (userId: string, data: any) => {
     const { recipient, amount, description, metadata } = data;
@@ -29,7 +30,7 @@ export const initiateTransfer = async (userId: string, data: any) => {
         throw { statusCode: 404, message: 'Recipient account not found' };
     }
 
-    return await prisma.$transaction(async (tx: any) => {
+    const result = await prisma.$transaction(async (tx: any) => {
         const senderAccount = await tx.account.findUnique({ where: { user_id: userId } });
 
         if (!senderAccount) throw { statusCode: 404, message: 'Sender account not found' };
@@ -101,4 +102,26 @@ export const initiateTransfer = async (userId: string, data: any) => {
             completed_at: transaction.completed_at
         };
     });
+
+    // Send notifications (outside transaction to avoid blocking, or inside if critical)
+    // Ideally outside, but we need transaction details. The transaction result is returned.
+    // We can await them here.
+
+    await createNotification(
+        userId,
+        'transfer',
+        'Transfer Sent',
+        `You sent ${amount} to ${recipientUser.first_name} ${recipientUser.last_name}`,
+        `/account/transactions/${result.reference_number}`
+    );
+
+    await createNotification(
+        recipientUser.id,
+        'transfer',
+        'Transfer Received',
+        `You received ${amount} from ${result.sender.name}`, // Sender name might need fetching if not in result fully
+        `/account/transactions/${result.reference_number}`
+    );
+
+    return result;
 };
