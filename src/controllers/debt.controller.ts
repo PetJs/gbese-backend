@@ -35,3 +35,18 @@ export const schedulePayment = async (req: AuthRequest, res: Response, next: Nex
         next(error);
     }
 };
+
+export const repayDebt = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        // Basic validation for now, or use a schema if available
+        if (!req.body.obligation_id || !req.body.amount) {
+            res.status(400).json({ success: false, message: 'obligation_id and amount are required' });
+            return;
+        }
+
+        const result = await debtService.repayDebt(req.user.id, req.body);
+        res.status(200).json({ success: true, data: result, message: 'Debt repayment processed' });
+    } catch (error) {
+        next(error);
+    }
+};
