@@ -45,14 +45,12 @@ export const verify2FASchema = Joi.object({
 
 export const kycSubmitSchema = Joi.object({
     date_of_birth: Joi.date().required(),
-    gender: Joi.string().valid('male', 'female', 'other').required(),
-    address: Joi.object({
-        street: Joi.string().required(),
-        city: Joi.string().required(),
-        state: Joi.string().required(),
-        country: Joi.string().required(),
-        postal_code: Joi.string().required(),
-    }).required(),
+    gender: Joi.string().valid('male', 'female', 'other').optional(),
+    address: Joi.string().required(),
+    city: Joi.string().required(),
+    state: Joi.string().required(),
+    country: Joi.string().required(),
+    postal_code: Joi.string().required(),
     occupation: Joi.string().required(),
     bvn: Joi.string().length(11).pattern(/^[0-9]+$/).optional(),
     nin: Joi.string().length(11).pattern(/^[0-9]+$/).optional(),
