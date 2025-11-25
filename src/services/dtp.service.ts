@@ -178,9 +178,44 @@ export const cancelRequest = async (userId: string, requestId: string) => {
 };
 
 export const findMatches = async (userId: string) => {
+    // Find users who are active, verified, and have high reputation
+    const matches = await prisma.user.findMany({
+        where: {
+            id: { not: userId },
+            account_status: 'active',
+            kyc_status: 'verified',
+            account: {
+                is_locked: false
+            }
+        },
+        include: {
+            account: true
+        },
+        orderBy: {
+            reputation_score: 'desc'
+        },
+        take: 20
+    });
+
+    const formattedMatches = matches.map(user => {
+        const account = user.account;
+        if (!account) return null;
+
+        const availableCredit = Number(account.credit_limit) - Number(account.total_debt_obligation) - Number(account.pending_transfers_out);
+
+        return {
+            user_id: user.id,
+            name: `${user.first_name} ${user.last_name}`,
+            reputation_score: Number(user.reputation_score),
+            available_credit: availableCredit,
+            currency: account.currency
+        };
+    }).filter(match => match !== null && match.available_credit > 0); // Only show users who can actually take debt
+
     return {
-        matches: [],
-        message: 'No matches found at this time'
+        matches: formattedMatches,
+        count: formattedMatches.length,
+        message: formattedMatches.length > 0 ? 'Matches found' : 'No matching users found at this time'
     };
 };
 
