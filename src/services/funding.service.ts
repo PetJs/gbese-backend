@@ -1,5 +1,6 @@
 import prisma from '../config/db.js';
 import { v4 as uuidv4 } from 'uuid';
+import { createNotification } from './analytics.service.js';
 
 export const initiateDeposit = async (userId: string, data: any) => {
     const { amount, payment_method, metadata } = data;
@@ -45,6 +46,15 @@ export const initiateDeposit = async (userId: string, data: any) => {
 
         return newTx;
     });
+
+    // Send notification
+    await createNotification(
+        userId,
+        'system_announcement', // Using system_announcement as generic type for now, or 'transfer' if appropriate
+        'Deposit Successful',
+        `Your deposit of ${amount} was successful.`,
+        `/account`
+    );
 
     return {
         transaction_id: transaction.id,
