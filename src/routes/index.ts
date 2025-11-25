@@ -20,8 +20,8 @@ router.use('/funding', fundingRoutes);
 router.use('/transfer', transferRoutes);
 router.use('/credit', creditRoutes);
 router.use('/debt', debtRoutes);
-router.use('/debt', dtpRoutes);
-router.use('/', analyticsRoutes);
+router.use('/dtp', dtpRoutes);
+router.use('/analytics', analyticsRoutes);
 
 router.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
