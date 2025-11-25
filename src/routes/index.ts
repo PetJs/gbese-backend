@@ -14,7 +14,7 @@ const router = Router();
 
 router.use('/auth', authRoutes);
 router.use('/user', userRoutes);
-router.use('/user/kyc', kycRoutes);
+router.use('/kyc', kycRoutes);
 router.use('/account', accountRoutes);
 router.use('/funding', fundingRoutes);
 router.use('/transfer', transferRoutes);
