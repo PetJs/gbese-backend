@@ -1,4 +1,5 @@
 import prisma from '../config/db.js';
+import { createNotification } from './analytics.service.js';
 
 export const getAccountBalance = async (userId: string) => {
     const account = await prisma.account.findUnique({
@@ -160,5 +161,54 @@ export const getTransactionByRef = async (userId: string, reference: string) => 
         metadata: tx.metadata,
         initiated_at: tx.initiated_at,
         completed_at: tx.completed_at
+    };
+};
+
+export const requestLimitIncrease = async (userId: string, requestedLimit: number) => {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { account: true }
+    });
+
+    if (!user) throw { statusCode: 404, message: 'User not found' };
+    if (!user.account) throw { statusCode: 404, message: 'Account not found' };
+
+    // 1. Check KYC Status
+    if (user.kyc_status !== 'verified') {
+        throw { statusCode: 400, message: 'KYC verification required for limit increase' };
+    }
+
+    // 2. Validate Limit (MVP Cap: 1,000,000)
+    const MAX_LIMIT = 1000000;
+    if (requestedLimit > MAX_LIMIT) {
+        throw { statusCode: 400, message: `Requested limit exceeds maximum allowed (${MAX_LIMIT})` };
+    }
+
+    if (requestedLimit <= Number(user.account.credit_limit)) {
+        throw { statusCode: 400, message: 'Requested limit must be higher than current limit' };
+    }
+
+    // 3. Update Limit (Auto-approve for MVP)
+    const updatedAccount = await prisma.account.update({
+        where: { id: user.account.id },
+        data: {
+            credit_limit: requestedLimit
+        }
+    });
+
+    // 4. Send Notification
+    await createNotification(
+        userId,
+        'system_alert',
+        'Credit Limit Increased',
+        `Your credit limit has been increased to ${requestedLimit}.`,
+        '/account'
+    );
+
+    return {
+        account_number: updatedAccount.account_number,
+        previous_limit: user.account.credit_limit,
+        new_limit: updatedAccount.credit_limit,
+        message: 'Credit limit updated successfully'
     };
 };
