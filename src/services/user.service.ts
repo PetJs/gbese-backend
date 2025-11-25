@@ -18,6 +18,13 @@ export const getUserProfile = async (userId: string) => {
             two_factor_enabled: true,
             created_at: true,
             last_login: true,
+            address: true,
+            city: true,
+            state: true,
+            country: true,
+            postal_code: true,
+            date_of_birth: true,
+            occupation: true,
         },
     });
 
