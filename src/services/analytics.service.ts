@@ -7,6 +7,18 @@ export const getNotifications = async (userId: string) => {
     });
 };
 
+export const createNotification = async (userId: string, type: any, title: string, message: string, actionUrl?: string) => {
+    return await prisma.notification.create({
+        data: {
+            user_id: userId,
+            type,
+            title,
+            message,
+            action_url: actionUrl
+        }
+    });
+};
+
 export const markNotificationRead = async (userId: string, notificationId: string) => {
     const notification = await prisma.notification.findUnique({
         where: { id: notificationId }
