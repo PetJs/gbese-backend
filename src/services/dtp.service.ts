@@ -1,7 +1,7 @@
 import prisma from '../config/db.js';
 
 export const initiateDebtTransfer = async (userId: string, data: any) => {
-    const { obligation_id, new_lender_id, discount_rate, reason } = data;
+    const { obligation_id, recipient_id, incentive_amount, transfer_type, discount_rate, reason } = data;
 
     const obligation = await prisma.debtObligation.findUnique({
         where: { id: obligation_id }
@@ -22,9 +22,11 @@ export const initiateDebtTransfer = async (userId: string, data: any) => {
             request_number: requestNumber,
             debt_id: obligation_id,
             sender_id: userId,
-            recipient_id: new_lender_id,
+            recipient_id: recipient_id,
             status: 'pending',
+            incentive_amount: incentive_amount || 0,
             incentive_percentage: discount_rate,
+            transfer_type: transfer_type || 'direct',
             notes: reason,
             expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days expiry
         }

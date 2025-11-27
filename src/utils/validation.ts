@@ -92,7 +92,9 @@ export const paymentScheduleSchema = Joi.object({
 
 export const debtTransferSchema = Joi.object({
     obligation_id: Joi.string().required(),
-    new_lender_id: Joi.string().required(), // User ID of the new lender
+    recipient_id: Joi.string().required(), // User ID of the new lender
+    incentive_amount: Joi.number().positive().optional(),
+    transfer_type: Joi.string().valid('direct', 'marketplace').required(),
     discount_rate: Joi.number().min(0).max(100).optional(),
     reason: Joi.string().optional(),
 });
