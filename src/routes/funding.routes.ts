@@ -52,13 +52,16 @@ router.post('/deposit', fundingController.deposit);
  *             type: object
  *             required:
  *               - amount
- *               - bank_account
+ *               - account_number
+ *               - bank_code
  *             properties:
  *               amount:
  *                 type: number
- *               bank_account:
+ *               account_number:
  *                 type: string
  *               bank_code:
+ *                 type: string
+ *               narration:
  *                 type: string
  *     responses:
  *       200:
