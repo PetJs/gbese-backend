@@ -3,7 +3,7 @@ import { createNotification } from './analytics.service.js';
 
 export const getDebtObligations = async (userId: string, query: any) => {
     const { status } = query;
-    const where: any = { original_borrower_id: userId };
+    const where: any = { current_holder_id: userId };
 
     if (status) where.status = status;
 
