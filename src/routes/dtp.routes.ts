@@ -32,6 +32,8 @@ router.use(authenticate);
  *               transfer_type:
  *                 type: string
  *                 enum: [direct, marketplace]
+ *               reason:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Transfer request created
