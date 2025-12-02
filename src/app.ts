@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(helmet());
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'https://gbese-pi.vercel.app'],
     credentials: true
 }));
 app.use(morgan('dev'));
