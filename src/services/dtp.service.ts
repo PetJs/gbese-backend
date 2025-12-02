@@ -152,6 +152,9 @@ export const respondToRequest = async (userId: string, requestId: string, action
         }
 
         return { status: 'accepted', message: 'Debt ownership transferred successfully' };
+    }, {
+        maxWait: 20000, // default: 2000
+        timeout: 20000  // default: 5000
     });
 };
 
