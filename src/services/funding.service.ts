@@ -118,7 +118,7 @@ export const initiateWithdrawal = async (userId: string, data: any) => {
                 type: 'withdrawal',
                 amount: amount,
                 fee: fee,
-                status: 'processing',
+                status: 'completed',
                 description: narration || 'Withdrawal',
                 metadata: {
                     bank_code,
@@ -137,7 +137,7 @@ export const initiateWithdrawal = async (userId: string, data: any) => {
             bank_name: 'Zenith Bank',
             account_number,
             status: transaction.status,
-            estimated_completion: new Date(Date.now() + 300000) // 5 mins
+            estimated_completion: new Date(Date.now() + 300)
         };
     });
 };
